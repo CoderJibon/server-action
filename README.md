@@ -1,36 +1,136 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## server actions
 
-## Getting Started
+```code
+"use server";
 
-First, run the development server:
+import { ImageUpload } from "@/utils/imageUpload.js";
+import Devs from "@/models/Devs.js";
+import { mongoDBConnection } from "@/config/mongoDBConnect.js";
+import { revalidatePath } from "next/cache.js";
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+export const createForm = async (formData) => {
+  await mongoDBConnection();
+  const name = formData.get("name");
+  const email = formData.get("email");
+  const cell = formData.get("cell");
+  const location = formData.get("location");
+
+  const fileData = await ImageUpload(formData.get("photo"));
+
+  await Devs.create({
+    name,
+    email,
+    cell,
+    location,
+    photo: fileData.secure_url,
+  });
+  revalidatePath("/");
+};
+export const getAllData = async () => {
+  await mongoDBConnection();
+
+  const data = await Devs.find();
+  return data;
+};
+export const deleteData = async (id) => {
+  await mongoDBConnection();
+
+  console.log(id);
+
+  const data = await Devs.findByIdAndDelete({ _id: id });
+  revalidatePath("/");
+};
+
+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```code
+import { createForm, getAllData } from "@/actions/DevsForm.js";
+import Button from "@/components/Button/Button.jsx";
+import Image from "next/image.js";
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+export default async function Home() {
+  const devs = await getAllData();
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+  return (
+    <>
+      <div className="min-h-screen grid grid-cols-2 gap-10 mt-20 ">
+        <div className=" p-8">
+          <h1>User List</h1>
+          --------------------
+          <div className=" grid grid-cols-3 mt-8">
+            {devs &&
+              devs.map((data) => (
+                <div
+                  key={data._id}
+                  className="text-center  flex flex-col justify-center items-center "
+                >
+                  <Image
+                    className="rounded-full mb-2"
+                    src={data.photo}
+                    width={150}
+                    height={150}
+                    alt="photo"
+                  ></Image>
+                  <h5>{data.name}</h5>
+                  <p>{data.email}</p>
+                  <Button dataId={data?._id?.toString()}></Button>
+                </div>
+              ))}
+          </div>
+        </div>
+        <div>
+          <form className="" encType="multipart/form-data " action={createForm}>
+            <div className="shadow-xl p-6">
+              <div className="flex flex-col mb-2">
+                <label htmlFor="">Name</label>
+                <input
+                  className="border focus:outline-none"
+                  type="text"
+                  name="name"
+                />
+              </div>
+              <div className="flex flex-col mb-2">
+                <label htmlFor="">Email</label>
+                <input
+                  className="border focus:outline-none"
+                  type="email"
+                  name="email"
+                />
+              </div>
+              <div className="flex flex-col mb-2">
+                <label htmlFor="">Cell</label>
+                <input
+                  className="border focus:outline-none"
+                  type="cell"
+                  name="cell"
+                />
+              </div>
+              <div className="flex flex-col mb-2">
+                <label htmlFor="">location</label>
+                <input
+                  className="border focus:outline-none"
+                  type="text"
+                  name="location"
+                />
+              </div>
+              <div className="flex flex-col mb-2">
+                <label htmlFor="">Phone</label>
+                <input
+                  className="border focus:outline-none"
+                  name="photo"
+                  type="file"
+                />
+              </div>
+              <button className="bg-slate-900 text-white w-full px-2 py-2">
+                Submit
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
